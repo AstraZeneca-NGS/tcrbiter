@@ -1,0 +1,13 @@
+-readId
+-descrR1
+-descrR2
+-sequence
+-targets
+-lengthOf CDR3
+-nFeature CDR3
+-vHit
+-vHits
+-vAlignment
+-jHit
+-jHits
+-jAlignment
