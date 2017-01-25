@@ -19,6 +19,21 @@ parser.add_argument('--r1', help='Read 1 of gzipped Fastq pair', required=True)
 parser.add_argument('--r2', help='Read 2 of gzipped Fastq pair', required=True)
 parser.add_argument('--blastdb', help="This is the BLAST database made for hg38 (if you don't have one please run makeblastdb and create it first)", required=True)
 
+def which(program):
+    """ returns the path to an executable or None if it can't be found"""
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+    return None
 
 ######DEFINED FUNCTIONS##################
 def convertToCsv(Filename, outfolder):
@@ -79,6 +94,14 @@ def blast2bed(blastfile,bedout):
 
 ######MAIN CODE##################
 args=parser.parse_args()
+# figure out if the requirements are actually installed
+if not which("mixcr"):
+    print "mixcr not found, please install it or put it in your path."
+    sys.exit(1)
+if not which("blastn"):
+    print "blastn not found, please install it or put it in your path."
+    sys.exit(1)
+
 #Retrieve fastq files from the input
 if args.r1:
 	rp1 = args.r1
@@ -93,6 +116,7 @@ else:
 	readpairkey = rp1.split('/')[-1].split('_1')[0]
 outdir = os.getcwd()
 scriptfolder = "/".join(sys.argv[0].split('/')[:-1])
+scriptfolder = sys.path[0]
 if not glob.glob('%s/intersectBlastmerging.R'%(scriptfolder)):
 	print "Missing intersectBlastmerging.R (this should have been included in the git package, please try cloning the package again if you continue to get this error)"
 if not glob.glob('%s/TRBsequences.bed'%(scriptfolder)):
