@@ -15,6 +15,7 @@ from operator import itemgetter
 print "Additional Requirements: Python, mixcr, BLAST, R, and bedtools must be installed and in the path correctly."
 print "Additional Requirements: must have BLAST database of hg38 or create one using makeblastdb."
 parser = argparse.ArgumentParser(prog='tcrBiter', usage='python /path/to/%(prog)s.py --r1 path/to/some_R1.fastq.gz --r2 path/to/some_r2.fastq.gz --blastdb /path/to/blast/db/for/hg38')
+parser.add_argument('--build', help='human build to use', default='hg38')
 parser.add_argument('--r1', help='Read 1 of gzipped Fastq pair', required=True)
 parser.add_argument('--r2', help='Read 2 of gzipped Fastq pair', required=True)
 parser.add_argument('--blastdb', help="This is the BLAST database made for hg38 (if you don't have one please run makeblastdb and create it first)", required=True)
@@ -117,10 +118,11 @@ else:
 outdir = os.getcwd()
 scriptfolder = "/".join(sys.argv[0].split('/')[:-1])
 scriptfolder = sys.path[0]
+bedfile = os.path.join(scriptfolder, "bed", "TRB-" + args.build + ".bed")
 if not glob.glob('%s/intersectBlastmerging.R'%(scriptfolder)):
 	print "Missing intersectBlastmerging.R (this should have been included in the git package, please try cloning the package again if you continue to get this error)"
-if not glob.glob('%s/TRBsequences.bed'%(scriptfolder)):
-	print "Missing TRBsequences.bed(this should have been included in the git package, please try cloning the package again if you continue to get this error)"
+if not os.path.exists(bedfile):
+	print "Missing the TRB sequences bedfile (this should have been included in the git package, please try cloning the package again if you continue to get this error)"
 if not glob.glob('%s/mixcrFiltering.R'%(scriptfolder)):
 	print "Missing mixcrFiltering.R(this should have been included in the git package, please try cloning the package again if you continue to get this error)"
 if not glob.glob('%s/myFields.alignmentExport.txt'%(scriptfolder)):
@@ -252,7 +254,7 @@ blast2bed('%s/%s/tcrOutput/%s.read1.blastClean.txt'%(outdir, readpairkey, readpa
 blast2bed('%s/%s/tcrOutput/%s.read2.blastClean.txt'%(outdir, readpairkey, readpairkey), '%s/%s/tcrOutput/%s.read2.bed'%(outdir, readpairkey, readpairkey))
 print "Bed conversion complete."
 #intersect the bedfiles
-cline = 'bedtools intersect -a %s/TRBsequences.bed -b %s/%s/tcrOutput/%s.read1.bed -wo > %s/%s/tcrOutput/%s.read1.intersectBed.txt'%(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+cline = 'bedtools intersect -a %s -b %s/%s/tcrOutput/%s.read1.bed -wo > %s/%s/tcrOutput/%s.read1.intersectBed.txt'%(bedfile, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
 pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
 fhw = open(outdir+"/"+readpairkey+"/tcrError/bedtoolsintersect.read1.error.txt",'w')
@@ -261,7 +263,7 @@ fhw.close()
 fhw = open(outdir+"/"+readpairkey+"/tcrError/bedtoolsintersect.read1.stdout.txt",'w')
 fhw.write(pout)
 fhw.close()
-cline = 'bedtools intersect -a %s/TRBsequences.bed -b %s/%s/tcrOutput/%s.read2.bed -wo > %s/%s/tcrOutput/%s.read2.intersectBed.txt'%(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+cline = 'bedtools intersect -a %s -b %s/%s/tcrOutput/%s.read2.bed -wo > %s/%s/tcrOutput/%s.read2.intersectBed.txt'%(bedfile, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
 pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
 fhw = open(outdir+"/"+readpairkey+"/tcrError/bedtoolsintersect.read2.error.txt",'w')

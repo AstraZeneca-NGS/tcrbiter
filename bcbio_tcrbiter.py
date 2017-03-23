@@ -4,14 +4,15 @@ from subprocess import check_call
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    parser.add_argument("--build", default="hg38")
     parser.add_argument("yaml", 
         help="Path to bcbio-nextgen sample configuration YAML file.")
     parser.add_argument("blastdb",
         help="Path to BLAST nucleotide database.")
     args = parser.parse_args()
     blastdb = args.blastdb
-    base_cmd = ("python tcrBiter_betav2.py --r1 {r1} --r2 {r2} "
-                "--blastdb {blastdb}")
+    base_cmd = ("python tcrBiter_betav2.py --build {args.build} --r1 {r1} "
+                " --r2 {r2} --blastdb {blastdb}")
     with open(args.yaml) as in_handle:
         summary = yaml.load(in_handle)
     details =  summary["details"]
