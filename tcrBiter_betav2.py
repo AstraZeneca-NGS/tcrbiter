@@ -3,7 +3,7 @@
 #TCRbiter: Detecting T cell rearrangements in silico from non-targeted DNA Sequencing (WGS/WES)
 #Authors: Tristan Lubinski, Lara McGrath
 #Date: Sept 12, 2016
-#Purpose: Detect and count reads supporting T cell rearrangements 
+#Purpose: Detect and count reads supporting T cell rearrangements
 
 #Built for MiXCR v1.7
 #For download, use, and license information for MiXCR visit https://github.com/milaboratory/mixcr
@@ -102,6 +102,9 @@ if not which("mixcr"):
 if not which("blastn"):
     print "blastn not found, please install it or put it in your path."
     sys.exit(1)
+if not which("bedtools"):
+    print "bedtools not found, please install it or put it in your path."
+    sys.exit(1)
 
 #Retrieve fastq files from the input
 if args.r1:
@@ -154,7 +157,7 @@ fhw.close()
 
 print "Through mixcr align for "+readpairkey
 #export mixcr alignments
-cline = "mixcr exportAlignments -s -pf %s/myFields.alignmentExport.txt %s/%s/tcrOutput/%s.vdjca %s/%s/tcrOutput/%s.results.txt" %(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey) 
+cline = "mixcr exportAlignments -s -pf %s/myFields.alignmentExport.txt %s/%s/tcrOutput/%s.vdjca %s/%s/tcrOutput/%s.results.txt" %(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
 pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
 fhw = open(outdir+"/"+readpairkey+"/tcrError/MixcrExport.error.txt",'w')
@@ -185,7 +188,7 @@ cline = "zcat %s |grep -A1 -Ff %s/%s/tcrOutput/%s.filteredread1.txt" % (rp1, out
 fhwc.write(cline+"\n\n")
 pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
 for line in pout.split('\n'):
-	if "@" in line:	
+	if "@" in line:
 		readid = line.lstrip("@").strip()
 	elif not line.strip() == '' and not "--" in line:
 		fhw.write("%s\t%s\n"%(readid, len(line.strip())))
@@ -200,13 +203,13 @@ cline = "zcat %s |grep -A1 -Ff %s/%s/tcrOutput/%s.filteredread2.txt" % (rp2, out
 fhwc.write(cline+"\n\n")
 pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
 for line in pout.split('\n'):
-	if "@" in line:	
+	if "@" in line:
 		readid = line.lstrip("@").strip()
 	elif not line.strip() == '' and not "--" in line:
 		fhw.write("%s\t%s\n"%(readid, len(line.strip())))
 		fhfasta.write(">%s\n%s\n"%(readid, line))
 fhw.close()
-fhfasta.close()	
+fhfasta.close()
 print "Through fastq for Read 2 of the pair\nFastq keys have been output and fasta files created for each of the filtered sets\n\n==================\n"
 print "Starting BLAST confirmation..."
 #now perform BLAST to verify alignments
@@ -283,5 +286,5 @@ fhw.close()
 fhw = open(outdir+"/"+readpairkey+"/tcrError/intersectBlastMerge.stdout.txt",'w')
 fhw.write(pout)
 fhw.close()
-print "Process complete." 
+print "Process complete."
 fhwc.close()
