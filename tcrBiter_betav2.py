@@ -145,9 +145,20 @@ print "==================\n"
 print "Starting analysis..."
 #begin commands
 #mixcr alignments to T cell receptor beta sequences
-cline = "mixcr align -l TRB -OvParameters.geneFeatureToAlign=Vgene -s hsa --save-description --report %s/%s/tcrOutput/%s.alignmentReport.log %s %s %s/%s/tcrOutput/%s.vdjca"%(outdir, readpairkey, readpairkey, rp1, rp2, outdir, readpairkey, readpairkey)
+cline = ("mixcr align -l TRB -OvParameters.geneFeatureToAlign=Vgene -s hsa "
+         "--save-description --report %s/%s/tcrOutput/%s.alignmentReport.log "
+         "%s %s %s/%s/tcrOutput/%s.vdjca"
+         %(outdir, readpairkey, readpairkey, rp1, rp2, outdir,
+           readpairkey, readpairkey))
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/MixcrAlign.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -159,7 +170,14 @@ print "Through mixcr align for "+readpairkey
 #export mixcr alignments
 cline = "mixcr exportAlignments -s -pf %s/myFields.alignmentExport.txt %s/%s/tcrOutput/%s.vdjca %s/%s/tcrOutput/%s.results.txt" %(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/MixcrExport.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -173,7 +191,14 @@ fhwc.write("convertToCsv (internal to script)\n\n")
 print "Through conversion to CSV for "+readpairkey
 cline = "Rscript --vanilla %s/mixcrFiltering.R %s/%s/tcrOutput/%s.results.csv %s/%s/tcrOutput/%s.filteredResults.csv"%(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/MixcrFiltering.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -186,7 +211,14 @@ fhw=open(('%s/%s/tcrOutput/%s.filteredread1.readkey.txt' %(outdir, readpairkey, 
 fhfasta = open("%s/%s/tcrOutput/%s.read1.filtered.fasta"%(outdir, readpairkey, readpairkey), "w")
 cline = "zcat %s |grep -A1 -Ff %s/%s/tcrOutput/%s.filteredread1.txt" % (rp1, outdir, readpairkey, readpairkey )
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 for line in pout.split('\n'):
 	if "@" in line:
 		readid = line.lstrip("@").strip()
@@ -201,7 +233,14 @@ fhw=open(('%s/%s/tcrOutput/%s.filteredread2.readkey.txt'%(outdir, readpairkey, r
 fhfasta = open("%s/%s/tcrOutput/%s.read2.filtered.fasta"%(outdir, readpairkey, readpairkey), "w")
 cline = "zcat %s |grep -A1 -Ff %s/%s/tcrOutput/%s.filteredread2.txt" % (rp2, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 for line in pout.split('\n'):
 	if "@" in line:
 		readid = line.lstrip("@").strip()
@@ -215,7 +254,14 @@ print "Starting BLAST confirmation..."
 #now perform BLAST to verify alignments
 cline = 'blastn -db %s -query %s/%s/tcrOutput/%s.read1.filtered.fasta -outfmt 6 -num_threads 6 > %s/%s/tcrOutput/%s.read1.blast.txt'%(blastdb, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/blastread1.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -224,7 +270,14 @@ fhw.write(pout)
 fhw.close()
 cline = 'blastn -db %s -query %s/%s/tcrOutput/%s.read2.filtered.fasta -outfmt 6 -num_threads 6 > %s/%s/tcrOutput/%s.read2.blast.txt'%(blastdb, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/blastread2.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -235,7 +288,14 @@ print 'Blast completed.'
 #Remove all hits with HLA as it prohibits uploading in R later
 cline = 'grep -vwE "HLA" %s/%s/tcrOutput/%s.read1.blast.txt > %s/%s/tcrOutput/%s.read1.blastClean.txt'%(outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/blastcleanread1.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -244,7 +304,14 @@ fhw.write(pout)
 fhw.close()
 cline = 'grep -vwE "HLA" %s/%s/tcrOutput/%s.read2.blast.txt > %s/%s/tcrOutput/%s.read2.blastClean.txt'%(outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/blastcleanread2.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -259,7 +326,14 @@ print "Bed conversion complete."
 #intersect the bedfiles
 cline = 'bedtools intersect -a %s -b %s/%s/tcrOutput/%s.read1.bed -wo > %s/%s/tcrOutput/%s.read1.intersectBed.txt'%(bedfile, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/bedtoolsintersect.read1.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -268,7 +342,14 @@ fhw.write(pout)
 fhw.close()
 cline = 'bedtools intersect -a %s -b %s/%s/tcrOutput/%s.read2.bed -wo > %s/%s/tcrOutput/%s.read2.intersectBed.txt'%(bedfile, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/bedtoolsintersect.read2.error.txt",'w')
 fhw.write(perr)
 fhw.close()
@@ -279,7 +360,14 @@ print "Bedfile intersection completed."
 #finalize the results
 cline = 'Rscript --vanilla %s/intersectBlastmerging.R %s/%s/tcrOutput/%s.read1.intersectBed.txt %s/%s/tcrOutput/%s.read2.intersectBed.txt %s/%s/tcrOutput/%s.read1.blastClean.txt %s/%s/tcrOutput/%s.read2.blastClean.txt' %(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 fhwc.write(cline+"\n\n")
-pout, perr = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True ).communicate()
+child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         shell=True)
+pout, perr = child.communicate()
+rc = child.returncode
+if child.returncode:
+    print "Error running %s." % cline
+    print "Error: %s." % pout
+    sys.exit(1)
 fhw = open(outdir+"/"+readpairkey+"/tcrError/intersectBlastMerge.error.txt",'w')
 fhw.write(perr)
 fhw.close()
