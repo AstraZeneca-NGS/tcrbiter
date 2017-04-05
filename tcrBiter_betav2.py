@@ -1,20 +1,25 @@
 #! python
 
-#TCRbiter: Detecting T cell rearrangements in silico from non-targeted DNA Sequencing (WGS/WES)
-#Authors: Tristan Lubinski, Lara McGrath
-#Date: Sept 12, 2016
-#Purpose: Detect and count reads supporting T cell rearrangements
-
-#Built for MiXCR v1.7
-#For download, use, and license information for MiXCR visit https://github.com/milaboratory/mixcr
+# TCRbiter: Detecting T cell rearrangements in silico from non-targeted DNA
+# Sequencing (WGS/WES)
+# Authors: Tristan Lubinski, Lara McGrath
+# Date: Sept 12, 2016
+# Purpose: Detect and count reads supporting T cell rearrangements
+# Built for MiXCR v1.7
+# For download, use, and license information for MiXCR visit
+# https://github.com/milaboratory/mixcr
 
 import sys, copy, csv, os, glob, subprocess, argparse
 from operator import itemgetter
 
+__version__ = "0.0.1"
+
 #print "This script can be run from anywhere but must be in the same folder as the files: myFields.alignmentExport.txt, mixcrFiltering.R, TRBsequences.bed, and intersectBlastmerging.R"
-print "Additional Requirements: Python, mixcr, BLAST, R, and bedtools must be installed and in the path correctly."
-print "Additional Requirements: must have BLAST database of hg38 or create one using makeblastdb."
+#print "Additional Requirements: Python, mixcr, BLAST, R, and bedtools must be installed and in the path correctly."
+#print "Additional Requirements: must have BLAST database of hg38 or create one using makeblastdb."
 parser = argparse.ArgumentParser(prog='tcrBiter', usage='python /path/to/%(prog)s.py --r1 path/to/some_R1.fastq.gz --r2 path/to/some_r2.fastq.gz --blastdb /path/to/blast/db/for/hg38')
+parser.add_argument('--version', help="print TCRbiter version", action='version',
+                    version = __version__)
 parser.add_argument('--build', help='human build to use', default='hg38')
 parser.add_argument('--r1', help='Read 1 of gzipped Fastq pair', required=True)
 parser.add_argument('--r2', help='Read 2 of gzipped Fastq pair', required=True)
@@ -94,7 +99,8 @@ def blast2bed(blastfile,bedout):
 	fhw.close()
 
 ######MAIN CODE##################
-args=parser.parse_args()
+args = parser.parse_args()
+
 # figure out if the requirements are actually installed
 if not which("mixcr"):
     print "mixcr not found, please install it or put it in your path."
