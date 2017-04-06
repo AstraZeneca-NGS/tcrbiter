@@ -14,16 +14,25 @@ from operator import itemgetter
 
 __version__ = "0.0.1"
 
-#print "This script can be run from anywhere but must be in the same folder as the files: myFields.alignmentExport.txt, mixcrFiltering.R, TRBsequences.bed, and intersectBlastmerging.R"
-#print "Additional Requirements: Python, mixcr, BLAST, R, and bedtools must be installed and in the path correctly."
-#print "Additional Requirements: must have BLAST database of hg38 or create one using makeblastdb."
-parser = argparse.ArgumentParser(prog='tcrBiter', usage='python /path/to/%(prog)s.py --r1 path/to/some_R1.fastq.gz --r2 path/to/some_r2.fastq.gz --blastdb /path/to/blast/db/for/hg38')
-parser.add_argument('--version', help="print TCRbiter version", action='version',
+# This script can be run from anywhere but must be in the same folder as
+# the files: myFields.alignmentExport.txt, mixcrFiltering.R, TRBsequences.bed,
+# and intersectBlastmerging.R
+
+# Additional Requirements: Python, mixcr, BLAST, R, and bedtools must be
+# installed and in the path correctly. A BLAST database of hg38 or hg19
+# must be created with makeblastdb.
+usage = ("python /path/to/%(prog)s.py --r1 path/to/some_R1.fastq.gz --r2 "
+         "path/to/some_r2.fastq.gz --blastdb /path/to/blast/db/for/hg38")
+blastdbhelp = ("This is the BLAST database made for hg38 (if you don't have "
+               "one please run makeblastdb and create it first")
+
+parser = argparse.ArgumentParser(prog='tcrBiter', usage=usage)
+parser.add_argument('--version', help="TCRbiter version", action='version',
                     version = __version__)
 parser.add_argument('--build', help='human build to use', default='hg38')
 parser.add_argument('--r1', help='Read 1 of gzipped Fastq pair', required=True)
 parser.add_argument('--r2', help='Read 2 of gzipped Fastq pair', required=True)
-parser.add_argument('--blastdb', help="This is the BLAST database made for hg38 (if you don't have one please run makeblastdb and create it first)", required=True)
+parser.add_argument('--blastdb', help=blastdbhelp, required=True)
 
 def which(program):
     """ returns the path to an executable or None if it can't be found"""
