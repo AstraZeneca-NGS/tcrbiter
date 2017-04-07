@@ -202,11 +202,10 @@ logger.info("Starting analysis.")
 
 # mixcr alignments to T cell receptor beta sequences
 logger.info("Starting mixcr align for %s." % readpairkey)
+alignment_report = os.path.join(tcr_outputdir, "%s.alignmentReport.log" % readpairkey)
 cline = ("mixcr align -l TRB -OvParameters.geneFeatureToAlign=Vgene -s hsa "
-         "--save-description --report %s/%s/tcrOutput/%s.alignmentReport.log "
-         "%s %s %s/%s/tcrOutput/%s.vdjca"
-         %(outdir, readpairkey, readpairkey, rp1, rp2, outdir,
-           readpairkey, readpairkey))
+         "--save-description --report %s %s %s %s/%s/tcrOutput/%s.vdjca"
+         %(alignment_report, rp1, rp2, outdir, readpairkey, readpairkey))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -401,7 +400,7 @@ with open(os.path.join(tcr_errordir, "bedtoolsintersect.read2.stdout.txt"), "w")
     oh.write(pout)
 logger.info("Completed BEDfile intersection for %s." % readpairkey)
 
-logger.info("Starting finalizing results for %s." % readpairkey)
+logger.info("Starting merging intersected BLAST results for %s." % readpairkey)
 cline = 'Rscript --vanilla %s/intersectBlastmerging.R %s/%s/tcrOutput/%s.read1.intersectBed.txt %s/%s/tcrOutput/%s.read2.intersectBed.txt %s/%s/tcrOutput/%s.read1.blastClean.txt %s/%s/tcrOutput/%s.read2.blastClean.txt' %(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -415,5 +414,56 @@ with open(os.path.join(tcr_errordir, "intersectBlastMerge.error.txt"), "w") as o
     oh.write(perr)
 with open(os.path.join(tcr_errordir, "intersectBlastMerge.stdout.txt"), "w") as oh:
     oh.write(pout)
-logger.info("Finished finalizing results for %s." % readpairkey)
-logger.info("Process complete.")
+logger.info("Finished merging intersected BLAST results for %s." % readpairkey)
+
+logger.info("Started creating final report for %s." % readpairkey)
+
+logger.info("Finished creating final report for %s." % readpairkey)
+
+# estimate genome size
+with open(blastdb + ".fai") as ih:
+    # don't doublte-count the alts
+    chromlines = [x for x in ih if "_alt" not in x]
+    chromsizes = map(int, [x.split()[1].strip() for x in chromlines])
+genomesize = sum(chromsizes)
+
+# estimate total alignments
+with open(alignment_report) as ih:
+    for line in ih:
+        if line.startswith("Total sequencing"):
+            totalreadsline = line
+        if line.startswith("Input file"):
+            inputfileline = line
+totalreads = int(totalreadsline.split(":")[1].strip())
+inputfile = inputfileline.split(":")[1].strip()
+
+# estimate T-cells found
+intersect_stats = os.path.join(tcr_outputdir, readpairkey + ".intersectStats.txt")
+with open(intersect_stats) as ih:
+    ih.next()
+    statsline = ih.next()
+    tokens = [x.strip() for x in statsline.split()]
+    samplename = os.path.basename(tokens[0])
+    vdjhits = int(tokens[2])
+    falsehits = int(tokens[3]) + int(tokens[4])
+
+# output report
+reportfile = os.path.join(tcr_outputdir, readpairkey + ".report.txt")
+with open(reportfile, "w") as oh:
+    oh.write("# samplename: %s\n" % samplename)
+    oh.write("# inputfile: %s\n" % inputfile)
+    oh.write("# totalreads: %s\n" % totalreads)
+    oh.write("# TCRreads: %s\n" % vdjhits)
+    oh.write("# falsehits: %s\n" % falsehits)
+
+# VDJ intersections
+vdj_intersection = os.path.join(tcr_outputdir, readpairkey + ".intersectVDJ.txt")
+with open(vdj_intersection) as ih, open(reportfile, "a") as oh:
+    ih.next()
+    oh.write("readid gene1 gene2\n")
+    for line in ih:
+        tokens = [x.strip() for x in line.split()]
+        qid = tokens[0]
+        outstr = " ".join([qid, tokens[4], tokens[26]]) + "\n"
+        oh.write(outstr)
+logger.info("Processing complete for %s" % readpairkey)
