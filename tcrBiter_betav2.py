@@ -424,7 +424,7 @@ logger.info("Finished creating final report for %s." % readpairkey)
 with open(blastdb + ".fai") as ih:
     # don't doublte-count the alts
     chromlines = [x for x in ih if "_alt" not in x]
-    chromsizes = map(int, [x.split()[1].strip() for x in chromlines])
+    chromsizes = map(int, [x.split()[1].strip() for x in chromlines if x.isdigit()])
 genomesize = sum(chromsizes)
 
 # estimate total alignments
