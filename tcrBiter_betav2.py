@@ -41,6 +41,17 @@ def which(program):
                 return exe_file
     return None
 
+def is_mixcr2(cmd):
+    cmd += " --version"
+    child = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            shell=True)
+    pout, perr = child.communicate()
+    rc = child.returncode
+    if "MiXCR v2" in perr:
+        return True
+    else:
+        return False
+
 ######DEFINED FUNCTIONS##################
 def convertToCsv(Filename, outfolder):
 	#Formatting of MiXCR export alignments output
@@ -203,9 +214,10 @@ logger.info("Starting analysis.")
 # mixcr alignments to T cell receptor beta sequences
 logger.info("Starting mixcr align for %s." % readpairkey)
 alignment_report = os.path.join(tcr_outputdir, "%s.alignmentReport.log" % readpairkey)
-cline = ("mixcr align -l TRB -OvParameters.geneFeatureToAlign=Vgene -s hsa "
+chaincmd = " -c TRB " if is_mixcr2("mixcr") else " -l TRB "
+cline = ("mixcr align %s -OvParameters.geneFeatureToAlign=Vgene -s hsa "
          "--save-description --report %s %s %s %s/%s/tcrOutput/%s.vdjca"
-         %(alignment_report, rp1, rp2, outdir, readpairkey, readpairkey))
+         %(chaincmd, alignment_report, rp1, rp2, outdir, readpairkey, readpairkey))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
