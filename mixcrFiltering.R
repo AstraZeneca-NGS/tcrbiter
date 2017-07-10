@@ -3,7 +3,7 @@
 ##For command line interpretation of MiXCR output
 #by Lara Lewis McGrath, January 22, 2016
 #Edited 3/3/2016: added writing of curated output file
-#Edited 4/1/2016: edited to include additional column 
+#Edited 4/1/2016: edited to include additional column
 
 #Input is results.csv from MiXCR alignment
 
@@ -29,9 +29,9 @@ print("File loaded, beginning formatting and filtering...")
 ###Create column header function
 formatPE<- function(y){
   colnames(y)<- c("readId","read1","read2","sequence","targets","CDR3","CDR3sequence","bestVhit",
-                  "allVhits","Vstart","Vend","Vgenelength","Vquerystart","Vqueryend",           
+                  "allVhits","Vstart","Vend","Vgenelength","Vquerystart","Vqueryend",
                   "Vmut","Vscore","bestJhit","allJhits","Jstart","Jend","Jgenelength",
-                  "Jquerystart","Jqueryend","Jmut", "Jscore") 
+                  "Jquerystart","Jqueryend","Jmut", "Jscore")
   y$alignmentlength <- nchar(y$sequence)
   y$Jcliplength <- y$Jend-y$Jstart
   y$Vcliplength <- y$Vend-y$Vstart
@@ -40,10 +40,10 @@ formatPE<- function(y){
   y$Vdistancefromend <- (y$Vgenelength-y$Vend)
   y$Jdistancealignmentend <- abs(y$Jqueryend-y$alignmentlength)
   y <- y[c("readId","read1","read2","sequence","alignmentlength","targets","CDR3","bestVhit",
-           "allVhits","Vstart","Vend","Vcliplength","Vgenelength","Vquerystart","Vqueryend",           
+           "allVhits","Vstart","Vend","Vcliplength","Vgenelength","Vquerystart","Vqueryend",
            "Vcoverage","Vdistancefromend","Vmut","Vscore","bestJhit","allJhits","Jstart","Jend","Jcliplength","Jgenelength",
            "Jquerystart","Jqueryend","Jcoverage","Jdistancealignmentend","Jmut", "Jscore")]
-  
+
   return(y)
 }
 
@@ -89,17 +89,21 @@ desc <- data.frame(rbind(aligned,filtered,CDR3,CDR3isNA,meanCDR3,minCDR3,maxCDR3
 colnames(desc)<- filename
 
 #Create graphs for visualizing data
-pdf(paste(filename,".filteredStats.pdf",sep=""),width=7,height=11)
-par(mfrow=c(3,2))
-par(mar=c(5,4,7,2))
-hist(df_out$Jstart, main="Location of J rearrangement",xlab="Distance (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
-hist(df_out$Vdistancefromend, main="Location of V rearrangement",xlab="Distance (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
-hist(df_out$CDR3, main="CDR3",xlab="Length (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
-hist(df_out$Jcoverage, main="J alignment",xlab="Coverage of germline sequence (%)",cex.main=1,cex.lab=0.9, col="darkmagenta")
-hist(df_out$alignmentlength, main="Alignment Length",xlab="Length (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
-hist(df_out$Vcliplength, main="V alignment",xlab="Length (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
-mtext(paste(filename," - Statistics on Filtered Reads",sep=""),side=3,padj=2,outer=TRUE)
-dev.off()
+if(nrow(df_out) > 0)  {
+  pdf(paste(filename,".filteredStats.pdf",sep=""),width=7,height=11)
+  par(mfrow=c(3,2))
+  par(mar=c(5,4,7,2))
+  hist(df_out$Jstart, main="Location of J rearrangement",xlab="Distance (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
+  hist(df_out$Vdistancefromend, main="Location of V rearrangement",xlab="Distance (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
+  if(is.finite(minCDR3)) {
+      hist(df_out$CDR3, main="CDR3",xlab="Length (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
+  }
+  hist(df_out$Jcoverage, main="J alignment",xlab="Coverage of germline sequence (%)",cex.main=1,cex.lab=0.9, col="darkmagenta")
+  hist(df_out$alignmentlength, main="Alignment Length",xlab="Length (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
+  hist(df_out$Vcliplength, main="V alignment",xlab="Length (bp)",cex.main=1,cex.lab=0.9, col="darkmagenta")
+  mtext(paste(filename," - Statistics on Filtered Reads",sep=""),side=3,padj=2,outer=TRUE)
+  dev.off()
+  }
 
 
 
