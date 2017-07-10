@@ -10,8 +10,12 @@
 # https://github.com/milaboratory/mixcr
 
 import sys, copy, csv, os, glob, subprocess, argparse
+import gzip
 from operator import itemgetter
 import logging
+import itertools
+from io import BufferedReader
+import re
 
 __version__ = "0.0.1"
 
@@ -108,6 +112,35 @@ def blast2bed(blastfile,bedout):
 		fhw.write("%s\t%s\t%s\t%s\n"%(line2[1],min(lstart,lstop),max(lstart,lstop),line2[0]))
 	fh.close()
 	fhw.close()
+
+def stream_fastq(file_handler):
+    """
+    Generator which gives all four lines if a fastq read as one string
+    borrowed from https://github.com/vals/umis
+    """
+    next_element = ''
+    for i, line in enumerate(file_handler):
+        next_element += line
+        if i % 4 == 3:
+            yield next_element
+            next_element = ''
+
+def read_fastq(filename):
+    """
+    return a stream of FASTQ entries, handling gzipped and empty files
+    borrowed from https://github.com/vals/umis
+    """
+    if not filename:
+        return itertools.cycle((None,))
+    if filename.endswith('gz'):
+        filename_fh = BufferedReader(gzip.open(filename, mode='rt'))
+    else:
+        filename_fh = open(filename)
+    return stream_fastq(filename_fh)
+
+def create_filtered_set(filename):
+    with open(filename) as in_handle:
+        return {x.split()[0] for x in in_handle}
 
 ######MAIN CODE##################
 # This script can be run from anywhere but must be in the same folder as
@@ -275,46 +308,39 @@ logger.info("Completed filtering Rscript for %s." % readpairkey)
 # now we're going to parse the output into sets and filter the fastq files
 # read1
 logger.info("Starting filtering of the FASTQ files for %s." % readpairkey)
-fhw=open(('%s/%s/tcrOutput/%s.filteredread1.readkey.txt' %(outdir, readpairkey, readpairkey)), "w")
-fhfasta = open("%s/%s/tcrOutput/%s.read1.filtered.fasta"%(outdir, readpairkey, readpairkey), "w")
-cline = "gzip -cd %s |grep -A1 -Ff %s/%s/tcrOutput/%s.filteredread1.txt" % (rp1, outdir, readpairkey, readpairkey )
-cmdlogger.info(cline)
-child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         shell=True)
-pout, perr = child.communicate()
-rc = child.returncode
-if child.returncode:
-    logger.error("Error running %s." % cline)
-    sys.exit(1)
-for line in pout.split('\n'):
-	if "@" in line:
-		readid = line.lstrip("@").strip()
-	elif not line.strip() == '' and not "--" in line:
-		fhw.write("%s\t%s\n"%(readid, len(line.strip())))
-		fhfasta.write(">%s\n%s\n"%(readid, line))
-fhw.close()
-fhfasta.close()
+filteredreadfile = ('%s/%s/tcrOutput/%s.filteredread1.txt'
+                    %(outdir, readpairkey, readpairkey))
+fhfastafile = ("%s/%s/tcrOutput/%s.read1.filtered.fasta"
+               %(outdir, readpairkey, readpairkey))
+filtered_set = create_filtered_set(filteredreadfile)
+parser_re = re.compile('@(?P<name>.*) .*\\n(?P<seq>.*)\\n.*\\n.*\\n')
+with open(fhfastafile, "w") as fasta_out:
+    for read in read_fastq(rp1):
+        match = parser_re.match(read)
+        name = match.group('name').split()[0]
+        seq = match.group('seq')
+        if name not in filtered_set:
+            continue
+        fasta_out.write(">" + name + "\n")
+        fasta_out.write(seq + "\n")
 logger.info("Through fastq for Read 1 of the pair for %s." % readpairkey)
 # read2
-fhw=open(('%s/%s/tcrOutput/%s.filteredread2.readkey.txt'%(outdir, readpairkey, readpairkey)), "w")
-fhfasta = open("%s/%s/tcrOutput/%s.read2.filtered.fasta"%(outdir, readpairkey, readpairkey), "w")
-cline = "gzip -cd %s |grep -A1 -Ff %s/%s/tcrOutput/%s.filteredread2.txt" % (rp2, outdir, readpairkey, readpairkey)
-cmdlogger.info(cline)
-child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         shell=True)
-pout, perr = child.communicate()
-rc = child.returncode
-if child.returncode:
-    logger.error("Error running %s." % cline)
-    sys.exit(1)
-for line in pout.split('\n'):
-	if "@" in line:
-		readid = line.lstrip("@").strip()
-	elif not line.strip() == '' and not "--" in line:
-		fhw.write("%s\t%s\n"%(readid, len(line.strip())))
-		fhfasta.write(">%s\n%s\n"%(readid, line))
-fhw.close()
-fhfasta.close()
+logger.info("Starting filtering of the FASTQ files for %s." % readpairkey)
+filteredreadfile = ('%s/%s/tcrOutput/%s.filteredread2.txt'
+                    %(outdir, readpairkey, readpairkey))
+fhfastafile = ("%s/%s/tcrOutput/%s.read2.filtered.fasta"
+               %(outdir, readpairkey, readpairkey))
+filtered_set = create_filtered_set(filteredreadfile)
+parser_re = re.compile('@(?P<name>.*) .*\\n(?P<seq>.*)\\n.*\\n.*\\n')
+with open(fhfastafile, "w") as fasta_out:
+    for read in read_fastq(rp2):
+        match = parser_re.match(read)
+        name = match.group('name').split()[0]
+        seq = match.group('seq')
+        if name not in filtered_set:
+            continue
+        fasta_out.write(">" + name + "\n")
+        fasta_out.write(seq + "\n")
 logger.info("Through fastq for Read 2 of the pair. Fastq keys have been output "
             "and fasta files created for each of the filtered sets.")
 
