@@ -193,7 +193,7 @@ if not os.path.exists(tcr_errordir):
 	os.makedirs(tcr_errordir)
 
 # setup command logger
-commandlogfile = os.path.join(outdir, readpairkey, "tcrOutput", "tcrCommands.txt")
+commandlogfile = os.path.join(tcr_outdir, "tcrCommands.txt")
 cmdlogger = logging.getLogger("TCRbiter-commands")
 cmdloggerhandler = logging.FileHandler(commandlogfile)
 cmdloggerhandler.setFormatter(logging.Formatter("%(message)s"))
@@ -218,11 +218,12 @@ logger.info("Starting analysis.")
 
 # mixcr alignments to T cell receptor beta sequences
 logger.info("Starting mixcr align for %s." % readpairkey)
-alignment_report = os.path.join(tcr_outputdir, "%s.alignmentReport.log" % readpairkey)
+alignment_report = os.path.join(tcr_outdir, "%s.alignmentReport.log" % readpairkey)
 chaincmd = " -c TRB " if is_mixcr2("mixcr") else " -l TRB "
+outfile = os.path.join(tcr_outdir, readpairkey + ".vdjca")
 cline = ("mixcr align %s -OvParameters.geneFeatureToAlign=Vgene -s hsa "
-         "--save-description --report %s %s %s %s/%s/tcrOutput/%s.vdjca"
-         %(chaincmd, alignment_report, rp1, rp2, outdir, readpairkey, readpairkey))
+         "--save-description --report %s %s %s %s"
+         %(chaincmd, alignment_report, rp1, rp2, outfile))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -239,7 +240,10 @@ logger.info("Completed mixcr align for %s." % readpairkey)
 
 # export mixcr alignments
 logger.info("Starting mixcr exportAlignments for %s." % readpairkey)
-cline = "mixcr exportAlignments -s -pf %s/myFields.alignmentExport.txt %s/%s/tcrOutput/%s.vdjca %s/%s/tcrOutput/%s.results.txt" %(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+vdjca = os.path.join(tcr_outdir, readpairkey + ".vdjca")
+results = os.path.join(tcr_outdir, readpairkey + ".results.txt")
+cline = ("mixcr exportAlignments -s -pf %s/myFields.alignmentExport.txt %s %s"
+         %(scriptfolder, vdjca, results))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -256,13 +260,16 @@ logger.info("Completed mixcr exportAlignments for %s." % readpairkey)
 
 # convert to CSV process the file
 logger.info("Starting conversion of mixcr alignments to CSV for %s." % readpairkey)
-csvout = os.path.join(tcr_outputdir, readpairkey + ".results.txt")
-convertToCsv(csvout, tcr_outputdir)
+csvout = os.path.join(tcr_outdir, readpairkey + ".results.txt")
+convertToCsv(csvout, tcr_outdir)
 cmdlogger.info("convertToCsv (internal to script)")
 logger.info("Through conversion to CSV for %s." % readpairkey)
 
 logger.info("Starting filtering of mixcr results for %s." % readpairkey)
-cline = "Rscript --vanilla %s/mixcrFiltering.R %s/%s/tcrOutput/%s.results.csv %s/%s/tcrOutput/%s.filteredResults.csv"%(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+results = os.path.join(tcr_outdir, readpairkey + ".results.csv")
+filteredresults = os.path.join(tcr_outdir, readpairkey + ".filteredResults.csv")
+cline = ("Rscript --vanilla %s/mixcrFiltering.R %s %s"
+         %(scriptfolder, results, filteredresults))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -280,10 +287,8 @@ logger.info("Completed filtering Rscript for %s." % readpairkey)
 # now we're going to parse the output into sets and filter the fastq files
 # read1
 logger.info("Starting filtering of the FASTQ files for %s." % readpairkey)
-filteredreadfile = ('%s/%s/tcrOutput/%s.filteredread1.txt'
-                    %(outdir, readpairkey, readpairkey))
-fhfastafile = ("%s/%s/tcrOutput/%s.read1.filtered.fasta"
-               %(outdir, readpairkey, readpairkey))
+filteredreadfile = os.path.join(tcr_outdir, readpairkey + ".filteredread1.txt")
+fhfastafile = os.path.join(tcr_outdir, readpairkey + ".read1.filtered.fasta")
 filtered_set = create_filtered_set(filteredreadfile)
 parser_re = re.compile('@(?P<name>.*) .*\\n(?P<seq>.*)\\n.*\\n.*\\n')
 with open(fhfastafile, "w") as fasta_out:
@@ -298,10 +303,8 @@ with open(fhfastafile, "w") as fasta_out:
 logger.info("Through fastq for Read 1 of the pair for %s." % readpairkey)
 # read2
 logger.info("Starting filtering of the FASTQ files for %s." % readpairkey)
-filteredreadfile = ('%s/%s/tcrOutput/%s.filteredread2.txt'
-                    %(outdir, readpairkey, readpairkey))
-fhfastafile = ("%s/%s/tcrOutput/%s.read2.filtered.fasta"
-               %(outdir, readpairkey, readpairkey))
+filteredreadfile = os.path.join(tcr_outdir, readpairkey + ".filteredread2.txt")
+fhfastafile = os.path.join(tcr_outdir, readpairkey + ".read2.filtered.fasta")
 filtered_set = create_filtered_set(filteredreadfile)
 parser_re = re.compile('@(?P<name>.*) .*\\n(?P<seq>.*)\\n.*\\n.*\\n')
 with open(fhfastafile, "w") as fasta_out:
@@ -317,7 +320,10 @@ logger.info("Through fastq for Read 2 of the pair. Fastq keys have been output "
             "and fasta files created for each of the filtered sets.")
 
 logger.info("Starting BLAST confirmation for %s." % readpairkey)
-cline = 'blastn -db %s -query %s/%s/tcrOutput/%s.read1.filtered.fasta -outfmt 6 -num_threads 6 > %s/%s/tcrOutput/%s.read1.blast.txt'%(blastdb, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+read1fasta = os.path.join(tcr_outdir, readpairkey + ".read1.filtered.fasta")
+blastoutput = os.path.join(tcr_outdir, readpairkey + ".read1.blast.txt")
+cline = ('blastn -db %s -query %s -outfmt 6 -num_threads 6 > %s'
+         %(blastdb, read1fasta, blastoutput))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -330,7 +336,10 @@ with open(os.path.join(tcr_errordir, "blastread1.error.txt"), "w") as oh:
     oh.write(perr)
 with open(os.path.join(tcr_errordir, "blastread1.stdout.txt"), "w") as oh:
     oh.write(pout)
-cline = 'blastn -db %s -query %s/%s/tcrOutput/%s.read2.filtered.fasta -outfmt 6 -num_threads 6 > %s/%s/tcrOutput/%s.read2.blast.txt'%(blastdb, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+read2fasta = os.path.join(tcr_outdir, readpairkey + ".read2.filtered.fasta")
+blastoutput = os.path.join(tcr_outdir, readpairkey + ".read2.blast.txt")
+cline = ('blastn -db %s -query %s -outfmt 6 -num_threads 6 > %s'
+         %(blastdb, read2fasta, blastoutput))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -347,7 +356,9 @@ logger.info("BLAST confirmation completed for %s." % readpairkey)
 
 # Remove all hits with HLA as it prohibits uploading in R later
 logger.info("Filtering hits with HLA for %s." % readpairkey)
-cline = 'grep -vwE "HLA" %s/%s/tcrOutput/%s.read1.blast.txt > %s/%s/tcrOutput/%s.read1.blastClean.txt'%(outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+read1blast = os.path.join(tcr_outdir, readpairkey + ".read1.blast.txt")
+read1filteredblast = os.path.join(tcr_outdir, readpairkey + ".read1.blastClean.txt")
+cline = 'grep -vwE "HLA" %s > %s' %(read1blast, read1filteredblast)
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -360,7 +371,10 @@ with open(os.path.join(tcr_errordir, "blastcleanread1.error.txt"), "w") as oh:
     oh.write(perr)
 with open(os.path.join(tcr_errordir, "blastcleanread1.stdout.txt"), "w") as oh:
     oh.write(pout)
-cline = 'grep -vwE "HLA" %s/%s/tcrOutput/%s.read2.blast.txt > %s/%s/tcrOutput/%s.read2.blastClean.txt'%(outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+
+read2blast = os.path.join(tcr_outdir, readpairkey + ".read2.blast.txt")
+read2filteredblast = os.path.join(tcr_outdir, readpairkey + ".read2.blastClean.txt")
+cline = 'grep -vwE "HLA" %s > %s' %(read2blast, read2filteredblast)
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -377,12 +391,22 @@ logger.info("Completed filtering BLAST results for %s." % readpairkey)
 #now modify this to a bed file
 
 logger.info("Starting conversion of BLAST hits to BED format for %s." % readpairkey)
-blast2bed('%s/%s/tcrOutput/%s.read1.blastClean.txt'%(outdir, readpairkey, readpairkey), '%s/%s/tcrOutput/%s.read1.bed'%(outdir, readpairkey, readpairkey))
-blast2bed('%s/%s/tcrOutput/%s.read2.blastClean.txt'%(outdir, readpairkey, readpairkey), '%s/%s/tcrOutput/%s.read2.bed'%(outdir, readpairkey, readpairkey))
+read1filteredblast = os.path.join(tcr_outdir,
+                                  readpairkey + ".read1.blastClean.txt")
+read1bed = os.path.join(tcr_outdir, readpairkey + ".read1.bed")
+blast2bed(read1filteredblast, read1bed)
+read2filteredblast = os.path.join(tcr_outdir,
+                                  readpairkey + ".read2.blastClean.txt")
+read2bed = os.path.join(tcr_outdir, readpairkey + ".read2.bed")
+blast2bed(read2filteredblast, read2bed)
 logger.info("Completed conversion of BLAST hits to BED for %s." % readpairkey)
 
+read1bed = os.path.join(tcr_outdir, readpairkey + ".read1.bed")
+read1bedintersect = os.path.join(tcr_outdir,
+                                 readpairkey + ".read1.intersectBed.txt")
 logger.info("Starting intersecting BED files for %s." % readpairkey)
-cline = 'bedtools intersect -a %s -b %s/%s/tcrOutput/%s.read1.bed -wo > %s/%s/tcrOutput/%s.read1.intersectBed.txt'%(bedfile, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+cline = ('bedtools intersect -a %s -b %s -wo > %s'
+         %(bedfile, read1bed, read1bedintersect))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -395,7 +419,12 @@ with open(os.path.join(tcr_errordir, "bedtoolsintersect.read1.error.txt"), "w") 
     oh.write(perr)
 with open(os.path.join(tcr_errordir, "bedtoolsintersect.read1.stdout.txt"), "w") as oh:
     oh.write(pout)
-cline = 'bedtools intersect -a %s -b %s/%s/tcrOutput/%s.read2.bed -wo > %s/%s/tcrOutput/%s.read2.intersectBed.txt'%(bedfile, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+read2bed = os.path.join(tcr_outdir, readpairkey + ".read2.bed")
+read2bedintersect = os.path.join(tcr_outdir,
+                                 readpairkey + ".read2.intersectBed.txt")
+logger.info("Starting intersecting BED files for %s." % readpairkey)
+cline = ('bedtools intersect -a %s -b %s -wo > %s'
+         %(bedfile, read2bed, read2bedintersect))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -411,7 +440,17 @@ with open(os.path.join(tcr_errordir, "bedtoolsintersect.read2.stdout.txt"), "w")
 logger.info("Completed BEDfile intersection for %s." % readpairkey)
 
 logger.info("Starting merging intersected BLAST results for %s." % readpairkey)
-cline = 'Rscript --vanilla %s/intersectBlastmerging.R %s/%s/tcrOutput/%s.read1.intersectBed.txt %s/%s/tcrOutput/%s.read2.intersectBed.txt %s/%s/tcrOutput/%s.read1.blastClean.txt %s/%s/tcrOutput/%s.read2.blastClean.txt' %(scriptfolder, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey, outdir, readpairkey, readpairkey)
+read1bedintersect = os.path.join(tcr_outdir,
+                                 readpairkey + ".read1.intersectBed.txt")
+read2bedintersect = os.path.join(tcr_outdir,
+                                 readpairkey + ".read2.intersectBed.txt")
+read1blastclean = os.path.join(tcr_outdir,
+                               readpairkey + ".read1.blastClean.txt")
+read2blastclean = os.path.join(tcr_outdir,
+                               readpairkey + ".read2.blastClean.txt")
+cline = ('Rscript --vanilla %s/intersectBlastmerging.R %s %s %s %s'
+         %(scriptfolder, read1bedintersect, read2bedintersect,
+           read1blastclean, read2blastclean))
 cmdlogger.info(cline)
 child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          shell=True)
@@ -448,7 +487,7 @@ totalreads = int(totalreadsline.split(":")[1].strip())
 inputfile = inputfileline.split(":")[1].strip()
 
 # estimate T-cells found
-intersect_stats = os.path.join(tcr_outputdir, readpairkey + ".intersectStats.txt")
+intersect_stats = os.path.join(tcr_outdir, readpairkey + ".intersectStats.txt")
 with open(intersect_stats) as ih:
     ih.next()
     statsline = ih.next()
@@ -458,7 +497,7 @@ with open(intersect_stats) as ih:
     falsehits = int(tokens[3]) + int(tokens[4])
 
 # output report
-reportfile = os.path.join(tcr_outputdir, readpairkey + ".report.txt")
+reportfile = os.path.join(tcr_outdir, readpairkey + ".report.txt")
 with open(reportfile, "w") as oh:
     oh.write("# samplename: %s\n" % samplename)
     oh.write("# inputfile: %s\n" % inputfile)
@@ -467,7 +506,7 @@ with open(reportfile, "w") as oh:
     oh.write("# falsehits: %s\n" % falsehits)
 
 # VDJ intersections
-vdj_intersection = os.path.join(tcr_outputdir, readpairkey + ".intersectVDJ.txt")
+vdj_intersection = os.path.join(tcr_outdir, readpairkey + ".intersectVDJ.txt")
 with open(vdj_intersection) as ih, open(reportfile, "a") as oh:
     ih.next()
     oh.write("readid gene1 gene2\n")
