@@ -223,17 +223,6 @@ for fn in prereqs:
         logger.error(missing_prereq_msg.format(prereq))
         sys.exit(1)
 
-biterdir_exists_msg = ("The results folder already exists, this may "
-                     "happen if you've already run the script, however it may "
-                     "be due to the fastq files being named without an _R1 in "
-                     "them. Consider renaming your fastq files if this becomes "
-                     "an issue.")
-biterdir = os.path.join(outdir, readpairkey)
-if not os.path.exists(biterdir):
-	os.mkdir(biterdir)
-else:
-    logger.warning(biterdir_exists_msg)
-
 tcr_errordir = os.path.join(biterdir, "tcrError")
 tcr_outputdir = os.path.join(biterdir, "tcrOutput")
 if not os.path.exists(tcr_errordir):
