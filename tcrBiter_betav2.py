@@ -175,14 +175,9 @@ if not which("bedtools"):
     print "bedtools not found, please install it or put it in your path."
     sys.exit(1)
 
-#Retrieve fastq files from the input
-if args.r1:
-	rp1 = args.r1
-if args.r2:
-	rp2= args.r2
-#retreive blast db
-if args.blastdb:
-	blastdb = args.blastdb
+rp1 = args.r1
+rp2 = args.r2
+blastdb = args.blastdb
 if "_R1" in rp1:
 	readpairkey = rp1.split('/')[-1].split('_R1')[0]
 else:
@@ -194,10 +189,6 @@ tcr_outdir = os.path.join(outdir, readpairkey, "tcrOutput")
 tcr_errordir = os.path.join(outdir, readpairkey, "tcrError")
 if not os.path.exists(tcr_outdir):
 	os.makedirs(tcr_outdir)
-if not os.path.exists(tcr_outdir):
-	os.makedirs(tcr_outdir)
-if not os.path.exists(tcr_errordir):
-	os.makedirs(tcr_errordir)
 if not os.path.exists(tcr_errordir):
 	os.makedirs(tcr_errordir)
 
@@ -222,14 +213,6 @@ for fn in prereqs:
     if not os.path.exists(prereq):
         logger.error(missing_prereq_msg.format(prereq))
         sys.exit(1)
-
-tcr_errordir = os.path.join(biterdir, "tcrError")
-tcr_outputdir = os.path.join(biterdir, "tcrOutput")
-if not os.path.exists(tcr_errordir):
-	os.mkdir(tcr_errordir)
-if not os.path.exists(tcr_outputdir):
-	os.mkdir(tcr_outputdir)
-
 
 logger.info("Starting analysis.")
 
