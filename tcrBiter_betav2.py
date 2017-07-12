@@ -17,6 +17,9 @@ import itertools
 from io import BufferedReader
 import re
 
+import pandas as pd
+import numpy as np
+
 __version__ = "0.0.1"
 
 # setup main progress logger
@@ -58,48 +61,113 @@ def is_mixcr2(cmd):
 
 ######DEFINED FUNCTIONS##################
 def convertToCsv(Filename, outfolder):
-	#Formatting of MiXCR export alignments output
-	#Purpose to modify the input txt file into a csv with necessary formatting
-	fh = open(Filename)
-	fhw = open(os.path.splitext(Filename)[0] + ".csv", "w")
-	fh.readline() #remove header
-	commathings=[7,8,10,11]
-	for line in fh:
-		line2 = line.split('\t')
-		line3= line.split()
-		if len(line2) == 11:
-			line2.insert(5,' ')
-		for place in commathings:
-			line2[place]= line2[place].replace('"','').replace(',',' ')
-		if int(line2[4])>1:
-			allseq = line2[3].replace('"','').replace(',','')
-			line2[3] = allseq
-			allscore = line2[9].replace('"','').split(',')
-			if len(allscore)>1: #have a line to split
-				maxscore = 0.00
-				maxset =''
-				for item in allscore:
-					if "|" in item:
-						newscore = float(item.split('|')[-1])
-						if newscore > maxscore:
-							maxscore = newscore
-							maxset = item
-				line2[9]=maxset #put the new seq in there
-			allscore = line2[-1].replace('"','').split(',')
-			if len(allscore)>1: #have a line to split
-				maxscore = 0.00
-				maxset =''
-				for item in allscore:
-					if "|" in item:
-						newscore = float(item.strip().split('|')[-1])
-						if newscore > maxscore:
-							maxscore = newscore
-							maxset = item.strip()
-				line2[-1]=maxset+"\n" #put the new seq in there
-		finalline = '\t'.join(line2).replace(",","").replace("|",",").replace("\t",",")
-		fhw.write(finalline)
-	fh.close()
-	fhw.close()
+    #Formatting of MiXCR export alignments output
+    #Purpose to modify the input txt file into a csv with necessary formatting
+    header = ["readId", "read1", "read2", "sequence", "targets", "CDR3",
+              "CDR3sequence", "bestVhit", "allVhits", "Vstart", "Vend",
+              "Vgenelength", "Vquerystart", "Vqueryend", "Vmut", "Vscore",
+              "bestJhit", "allJhits", "Jstart", "Jend", "Jgenelength",
+              "Jquerystart", "Jqueryend", "Jmut", "Jscore"]
+    fh = open(Filename)
+    fhw = open(os.path.splitext(Filename)[0] + ".csv", "w")
+    fhw.write(",".join(header) + "\n")
+    fh.readline() #remove header
+    commathings=[7,8,10,11]
+    for line in fh:
+        line2 = line.split('\t')
+        line3= line.split()
+        if len(line2) == 11:
+            line2.insert(5,' ')
+        for place in commathings:
+            line2[place]= line2[place].replace('"','').replace(',',' ')
+        if int(line2[4])>1:
+            allseq = line2[3].replace('"','').replace(',','')
+            line2[3] = allseq
+            allscore = line2[9].replace('"','').split(',')
+            if len(allscore)>1: #have a line to split
+                maxscore = 0.00
+                maxset =''
+                for item in allscore:
+                    if "|" in item:
+                        newscore = float(item.split('|')[-1])
+                        if newscore > maxscore:
+                            maxscore = newscore
+                            maxset = item
+                line2[9]=maxset #put the new seq in there
+            allscore = line2[-1].replace('"','').split(',')
+            if len(allscore)>1: #have a line to split
+                maxscore = 0.00
+                maxset =''
+                for item in allscore:
+                    if "|" in item:
+                        newscore = float(item.strip().split('|')[-1])
+                        if newscore > maxscore:
+                            maxscore = newscore
+                            maxset = item.strip()
+                line2[-1]=maxset+"\n" #put the new seq in there
+        finalline = '\t'.join(line2).replace(",","").replace("|",",").replace("\t",",")
+        fhw.write(finalline)
+    fh.close()
+    fhw.close()
+
+def formatPE(filename):
+    df = pd.read_csv(filename)
+    df["alignmentlength"] = df["sequence"].apply(len)
+    df["Jcliplength"] = df["Jend"] - df["Jstart"]
+    df["Vcliplength"] = df["Vend"] - df["Vstart"]
+    df["Jcoverage"] = df["Jcliplength"]/df["Jgenelength"]
+    df["Vcoverage"] = df["Vcliplength"]/df["Vgenelength"]
+    df["Vdistancefromend"] = df["Vgenelength"] - df["Vend"]
+    df["Jdistancealignmentend"] = abs(df["Jqueryend"]-df["alignmentlength"])
+    order = ["readId", "read1", "read2", "sequence", "alignmentlength",
+             "targets", "CDR3", "bestVhit", "allVhits", "Vstart", "Vend",
+             "Vcliplength", "Vgenelength", "Vquerystart", "Vqueryend",
+             "Vcoverage", "Vdistancefromend", "Vmut", "Vscore", "bestJhit",
+             "allJhits", "Jstart", "Jend", "Jcliplength", "Jgenelength",
+             "Jquerystart", "Jqueryend", "Jcoverage", "Jdistancealignmentend",
+             "Jmut", "Jscore"]
+    return(df[order])
+
+def filterPE(df, CDR3high=60, CDR3low=20, Vdistancefromend=20,
+             Jstart=15, Vquerystart=20):
+    keepcdr3 = ((df["CDR3"] < 60) &
+                (df["CDR3"] > 20))
+    keepvj = ((df["Vdistancefromend"] < 20) &
+              (df["Jstart"] < 15) &
+              (df["Vquerystart"] < 20))
+    return(df[keepcdr3 | keepvj])
+
+def filtered_read_statistics(df):
+    numerics = df.select_dtypes(include=['float64', 'int64'])
+    dfo = pd.DataFrame.from_dict({
+        "mean": numerics.apply(np.nanmean),
+        "min": numerics.apply(np.min),
+        "max": numerics.apply(np.max),
+        "median": numerics.apply(np.nanmedian),
+        "var": numerics.apply(lambda x: np.nanvar(x, ddof=1)),
+        "sd": numerics.apply(lambda x: np.nanstd(x, ddof=1))
+    })
+    dfo = dfo.transpose()
+    dfo["category"] = dfo.index
+    keep = ["category", "alignmentlength", "CDR3", "Vstart", "Vend",
+            "Vcliplength", "Vgenelength", "Vquerystart", "Vqueryend",
+            "Vcoverage", "Vdistancefromend", "Jstart", "Jcliplength",
+            "Jgenelength", "Jquerystart", "Jqueryend", "Jcoverage"]
+    dfo = dfo[keep]
+    dfo = dfo.reindex(["mean", "min", "max", "median", "var", "sd"])
+    return(dfo)
+
+def raw_vs_filtered(df, df_filt):
+    dfo = pd.DataFrame.from_dict({
+        "aligned": [len(df.index)],
+        "filtered": [len(df_filt.index)],
+        "CDR3": [df_filt["CDR3"].count()],
+        "meanCDR3": [np.mean(df_filt["CDR3"])],
+        "minCDR3": [np.min(df_filt["CDR3"])],
+        "maxCDR3": [np.max(df_filt["CDR3"])]
+    })
+    dfo["CDR3isNA"] = dfo["filtered"] - dfo["CDR3"]
+    return(dfo)
 
 def blast2bed(blastfile,bedout):
 	#takes in the cleaned blast file and makes a bed file out of it
@@ -266,22 +334,21 @@ cmdlogger.info("convertToCsv (internal to script)")
 logger.info("Through conversion to CSV for %s." % readpairkey)
 
 logger.info("Starting filtering of mixcr results for %s." % readpairkey)
+stem = os.path.join(tcr_outdir, readpairkey)
 results = os.path.join(tcr_outdir, readpairkey + ".results.csv")
 filteredresults = os.path.join(tcr_outdir, readpairkey + ".filteredResults.csv")
-cline = ("Rscript --vanilla %s/mixcrFiltering.R %s %s"
-         %(scriptfolder, results, filteredresults))
-cmdlogger.info(cline)
-child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         shell=True)
-pout, perr = child.communicate()
-rc = child.returncode
-if child.returncode:
-    logger.error("Error running %s." % cline)
-    sys.exit(1)
-with open(os.path.join(tcr_errordir, "MixcrFiltering.error.txt"), "w") as oh:
-    oh.write(perr)
-with open(os.path.join(tcr_errordir, "MixcrFiltering.stdout.txt"), "w") as oh:
-    oh.write(pout)
+description = os.path.join(tcr_outdir, readpairkey + ".description.txt")
+mixcr = formatPE(results)
+mixcr_filt = filterPE(mixcr)
+stats = filtered_read_statistics(mixcr_filt)
+descriptive = raw_vs_filtered(mixcr, mixcr_filt)
+
+mixcr_filt.to_csv(filteredresults, index=False)
+stats.to_csv(stem + ".statsFiltered.csv", index=False)
+descriptive.to_csv(stem + ".description.txt", index=False, sep="\t")
+mixcr_filt["read1"].to_csv(stem + ".filteredread1.txt", index=False)
+mixcr_filt["read2"].to_csv(stem + ".filteredread2.txt", index=False)
+mixcr.to_csv(stem + ".results.curated.csv", index=False)
 logger.info("Completed filtering Rscript for %s." % readpairkey)
 
 # now we're going to parse the output into sets and filter the fastq files
