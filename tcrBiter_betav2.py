@@ -5,6 +5,7 @@
 # Authors: Tristan Lubinski, Lara McGrath
 # Date: Sept 12, 2016
 # Purpose: Detect and count reads supporting T cell rearrangements
+
 # Built for MiXCR v1.7
 # For download, use, and license information for MiXCR visit
 # https://github.com/milaboratory/mixcr
@@ -128,13 +129,12 @@ def formatPE(filename):
              "Jmut", "Jscore"]
     return(df[order])
 
-def filterPE(df, CDR3high=60, CDR3low=20, Vdistancefromend=20,
-             Jstart=15, Vquerystart=20):
-    keepcdr3 = ((df["CDR3"] < 60) &
-                (df["CDR3"] > 20))
-    keepvj = ((df["Vdistancefromend"] < 20) &
-              (df["Jstart"] < 15) &
-              (df["Vquerystart"] < 20))
+def filterPE(df, CDR3high, CDR3low, Vdistancefromend, Jstart, Vquerystart):
+    keepcdr3 = ((df["CDR3"] < CDR3high) &
+                (df["CDR3"] > CDR3low))
+    keepvj = ((df["Vdistancefromend"] < Vdistancefromend) &
+              (df["Jstart"] < Jstart) &
+              (df["Vquerystart"] < Vquerystart))
     return(df[keepcdr3 | keepvj])
 
 def filtered_read_statistics(df):
@@ -210,7 +210,25 @@ def create_filtered_set(filename):
     with open(filename) as in_handle:
         return {x.split()[0] for x in in_handle}
 
-######MAIN CODE##################
+def load_BLAST(filename):
+    cnames = ["qseqid", "sseqid", "pident", "length", "mismatch", "gapopen",
+              "qstart", "qend", "sstart", "send", "evalue", "bitscore"]
+    return(pd.read_csv(filename, sep="\t", names=cnames))
+
+def load_intersect_bed(filename):
+    cnames = ["targetchr", "targetstart", "targetend", "gene", "querychr",
+              "querystart", "queryend", "qseqid", "alignmentlength"]
+    return(pd.read_csv(filename, sep="\t", names=cnames))
+
+def detect_subtype(symbol):
+    if symbol.startswith("TRBV"):
+        return "V"
+    elif symbol.startswith("TRBJ"):
+        return "J"
+    else:
+        return None
+
+###k###MAIN CODE##################
 # This script can be run from anywhere but must be in the same folder as
 # the files: myFields.alignmentExport.txt, mixcrFiltering.R, TRBsequences.bed,
 # and intersectBlastmerging.R
@@ -223,7 +241,22 @@ usage = ("python /path/to/%(prog)s.py --r1 path/to/some_R1.fastq.gz --r2 "
 blastdbhelp = ("This is the BLAST database made for hg38 (if you don't have "
                "one please run makeblastdb and create it first")
 
+
 parser = argparse.ArgumentParser(prog='TCRbiter', usage=usage)
+parser.add_argument("--Jstart", default=15,
+                   help=("Drop J reads which align to a J target gene, but after "
+                         "this base in that gene."))
+parser.add_argument("--Vquerystart", default=20,
+                   help=("Drop V reads which align to a V target gene, but after "
+                         "this base in the query sequence (the sequencing read)."))
+parser.add_argument("--Vdistancefromend", default=20,
+                   help=("Drop V reads which align to a V target gene, but the "
+                         "end of the alignment is further than this to the end "
+                         "of the V target gene."))
+parser.add_argument("--CDR3high", default=60,
+                   help=("Drop reads which have a longer CDR3 than this."))
+parser.add_argument("--CDR3low", default=20,
+                   help=("Drop reads which have a shorter CDR3 than this."))
 parser.add_argument('--version', help="TCRbiter version", action='version',
                     version = __version__)
 parser.add_argument('--build', help='human build to use', default='hg38')
@@ -339,7 +372,8 @@ results = os.path.join(tcr_outdir, readpairkey + ".results.csv")
 filteredresults = os.path.join(tcr_outdir, readpairkey + ".filteredResults.csv")
 description = os.path.join(tcr_outdir, readpairkey + ".description.txt")
 mixcr = formatPE(results)
-mixcr_filt = filterPE(mixcr)
+mixcr_filt = filterPE(mixcr, args.CDR3high, args.CDR3low, args.Vdistancefromend,
+                      args.Jstart, args.Vquerystart)
 stats = filtered_read_statistics(mixcr_filt)
 descriptive = raw_vs_filtered(mixcr, mixcr_filt)
 
@@ -515,27 +549,48 @@ read1blastclean = os.path.join(tcr_outdir,
                                readpairkey + ".read1.blastClean.txt")
 read2blastclean = os.path.join(tcr_outdir,
                                readpairkey + ".read2.blastClean.txt")
-cline = ('Rscript --vanilla %s/intersectBlastmerging.R %s %s %s %s'
-         %(scriptfolder, read1bedintersect, read2bedintersect,
-           read1blastclean, read2blastclean))
-cmdlogger.info(cline)
-child = subprocess.Popen(cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         shell=True)
-pout, perr = child.communicate()
-rc = child.returncode
-if child.returncode:
-    logger.error("Error running %s." % cline)
-    sys.exit(1)
-with open(os.path.join(tcr_errordir, "intersectBlastMerge.error.txt"), "w") as oh:
-    oh.write(perr)
-with open(os.path.join(tcr_errordir, "intersectBlastMerge.stdout.txt"), "w") as oh:
-    oh.write(pout)
+r1_intersect_bed = load_intersect_bed(read1bedintersect)
+r2_intersect_bed = load_intersect_bed(read2bedintersect)
+r1_blastclean = load_BLAST(read1blastclean)
+r2_blastclean = load_BLAST(read2blastclean)
+sseqid_per_read1 = r1_blastclean[["qseqid", "sseqid"]].drop_duplicates().groupby(["qseqid"]).count()
+sseqid_per_read1.columns = ["blastchrcount"]
+sseqid_per_read1["read"] = "1"
+sseqid_per_read1["qseqid"] = sseqid_per_read1.index
+r1join = pd.merge(r1_intersect_bed, sseqid_per_read1, on="qseqid")
+r1 = pd.merge(r1join, r1_blastclean)
+
+sseqid_per_read2 = r2_blastclean[["qseqid", "sseqid"]].drop_duplicates().groupby(["qseqid"]).count()
+sseqid_per_read2.columns = ["blastchrcount"]
+sseqid_per_read2["read"] = "2"
+sseqid_per_read2["qseqid"] = sseqid_per_read2.index
+r2join = pd.merge(r2_intersect_bed, sseqid_per_read2, on="qseqid")
+r2 = pd.merge(r2join, r2_blastclean)
+
+results = r1.append(r2)
+results["type"] = results["gene"].apply(detect_subtype)
+results = results.sort_values(["alignmentlength", "evalue"], ascending=[False, True]).drop_duplicates(["qseqid", "type", "read"])
+results.to_csv(os.path.join(tcr_outdir,
+                            readpairkey + ".intersectVDJ.txt"), sep="\t", index=False)
+
+stats = results.groupby("qseqid").type.agg(lambda x: "".join(sorted(set(x))))
+rstats = results.groupby("qseqid").read.agg(lambda x: len(set(x)))
+
+stats = {"sample": readpairkey,
+         "total": stats.shape[0],
+         "VDJ": sum(stats == "JV"),
+         "VV": sum(stats == "VV"),
+         "JJ": sum(stats == "JJ"),
+         "VNA": sum(stats == "V"),
+         "JNA": sum(stats == "J"),
+         "acrossreads": sum(rstats == 2),
+         "singleread": sum(rstats == 1)}
+pd.DataFrame(stats, index=[1]).to_csv(os.path.join(tcr_outdir,
+                                                   readpairkey + ".intersectStats.txt"),
+                                      sep="\t", index=False)
 logger.info("Finished merging intersected BLAST results for %s." % readpairkey)
 
 logger.info("Started creating final report for %s." % readpairkey)
-
-logger.info("Finished creating final report for %s." % readpairkey)
-
 # estimate genome size
 with open(blastdb + ".fai") as ih:
     # don't doublte-count the alts
@@ -553,33 +608,20 @@ with open(alignment_report) as ih:
 totalreads = int(totalreadsline.split(":")[1].strip())
 inputfile = inputfileline.split(":")[1].strip()
 
-# estimate T-cells found
-intersect_stats = os.path.join(tcr_outdir, readpairkey + ".intersectStats.txt")
-with open(intersect_stats) as ih:
-    ih.next()
-    statsline = ih.next()
-    tokens = [x.strip() for x in statsline.split()]
-    samplename = os.path.basename(tokens[0])
-    vdjhits = int(tokens[2])
-    falsehits = int(tokens[3]) + int(tokens[4])
-
 # output report
 reportfile = os.path.join(tcr_outdir, readpairkey + ".report.txt")
 with open(reportfile, "w") as oh:
-    oh.write("# samplename: %s\n" % samplename)
+    oh.write("# samplename: %s\n" % stats["sample"])
     oh.write("# inputfile: %s\n" % inputfile)
     oh.write("# totalreads: %s\n" % totalreads)
-    oh.write("# TCRreads: %s\n" % vdjhits)
-    oh.write("# falsehits: %s\n" % falsehits)
+    oh.write("# TCRreads: %s\n" % stats["VDJ"])
+    oh.write("# falsehits: %s\n" % (stats["VNA"] + stats["JNA"]))
 
-# VDJ intersections
-vdj_intersection = os.path.join(tcr_outdir, readpairkey + ".intersectVDJ.txt")
-with open(vdj_intersection) as ih, open(reportfile, "a") as oh:
-    ih.next()
-    oh.write("readid gene1 gene2\n")
-    for line in ih:
-        tokens = [x.strip() for x in line.split()]
-        qid = tokens[0]
-        outstr = " ".join([qid, tokens[4], tokens[26]]) + "\n"
-        oh.write(outstr)
+    with open(reportfile, "a") as oh:
+        oh.write("readid gene1 gene2\n")
+        resreport = results.groupby("qseqid").gene.agg(lambda x: " ".join(set(x)))
+        for qname, genes in zip(resreport.index, resreport):
+            oh.write(" ".join([qname, genes]) + "\n")
+
+logger.info("Finished creating final report for %s." % readpairkey)
 logger.info("Processing complete for %s" % readpairkey)
