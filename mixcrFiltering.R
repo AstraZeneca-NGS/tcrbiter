@@ -20,7 +20,7 @@ filename <- sapply(filename,"[",1)
 
 print(paste("Loading ", args[1], sep=""))
 #Load data into dataframe
-df <- read.csv(args[1], header=F,stringsAsFactors=FALSE)
+df <- read.csv(args[1], header=T,stringsAsFactors=FALSE)
 print("File loaded, beginning formatting and filtering...")
 
 
