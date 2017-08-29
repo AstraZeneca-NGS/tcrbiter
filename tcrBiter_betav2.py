@@ -304,7 +304,7 @@ cmdlogger.setLevel(logging.INFO)
 
 scriptfolder = sys.path[0]
 bedfile = os.path.join(scriptfolder, "bed", "TRB-" + args.build + ".bed")
-prereqs = ["mixcrFiltering.R", "myFields.alignmentExport.txt", bedfile]
+prereqs = [bedfile]
 missing_prereq_msg = ("Missing {} (this should have been included in the git "
                       "package, please try cloning the package again if you "
                       "continue to get this error).")
