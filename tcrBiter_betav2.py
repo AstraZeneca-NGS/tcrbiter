@@ -382,7 +382,7 @@ descriptive.to_csv(stem + ".description.txt", index=False, sep="\t")
 mixcr_filt["read1"].to_csv(stem + ".filteredread1.txt", index=False)
 mixcr_filt["read2"].to_csv(stem + ".filteredread2.txt", index=False)
 mixcr.to_csv(stem + ".results.curated.csv", index=False)
-logger.info("Completed filtering Rscript for %s." % readpairkey)
+logger.info("Completed filtering for %s." % readpairkey)
 
 # now we're going to parse the output into sets and filter the fastq files
 # read1
