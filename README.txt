@@ -1,9 +1,9 @@
 ###tcrBiter Usage and Output###
 ###Author: Lara McGrath
-###Date: 11/28/2016
+###Date: 8/29/2017
 
-tcrBiter is a python script that can be run from anywhere but must be in the same folder as the files: myFields.alignmentExport.txt, mixcrFiltering.R, TRBsequences.bed, and intersectBlastmerging.R
-Additional Requirements: Python, mixcr, BLAST, R, and bedtools must be installed and in the path correctly.
+tcrBiter is a python script that can be run from anywhere but must be in the same folder as the included bed files (bed/TRB-hg38.bed) and myFields.alignmentExport.txt
+Additional Requirements: Python, mixcr, BLAST and bedtools must be installed and in the path correctly.
 Additional Requirements: must have BLAST database of hg38 or create one using makeblastdb.
 Usage: python /path/to/runTCRbiter.py /path/to/some_R1.fastq.gz /path/to/some_R2.fastq.gz /path/to/BLAST/db/for/hg38
 
